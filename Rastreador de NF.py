@@ -1,43 +1,69 @@
 import xml.etree.ElementTree as ET
-import openpyxl
+from openpyxl import Workbook
+import os
+import tempfile
 
 
-def extrair_dados_xml(caminho_xml):
-    tree = ET.parse(caminho_xml)
+def extrair_informacoes(xml_path):
+    # Definir o mapeamento de prefixos de namespaces
+    namespaces = {'cte': 'http://www.portalfiscal.inf.br/cte'}
+
+    tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    dados_notas = []
+    # Adicione essas linhas para imprimir o conteúdo do elemento raiz
+    print("Conteúdo do elemento raiz:")
+    print(ET.tostring(root, encoding='utf-8').decode('utf-8'))
 
-    for nota in root.findall('.//sua_tag_nota'):
-        numero_nota = nota.find('numero').text
-        valor = nota.find('valor').text
-        data = nota.find('data').text
+    # Extrair informações específicas do XML com consideração aos namespaces
+    numero_nota = root.find(".//cte:xNome", namespaces)
+    valor = root.find(".//cte:email", namespaces)
+    logradouro = root.find(".//cte:xLgr", namespaces)
 
-        dados_notas.append([numero_nota, valor, data])
+    # Adicione essas linhas para imprimir os valores encontrados
+    print("Número da Nota:",
+          numero_nota.text if numero_nota is not None else "Não encontrado")
+    print("Valor:", valor.text if valor is not None else "Não encontrado")
+    print("Logradouro:", logradouro.text if logradouro is not None else "Não encontrado")
 
-    return dados_notas
+    # Verificar se os elementos foram encontrados
+    numero_nota_text = numero_nota.text if numero_nota is not None else ""
+    valor_text = valor.text if valor is not None else ""
+    logradouro_text = logradouro.text if logradouro is not None else ""
+
+    return numero_nota_text, valor_text, logradouro_text
 
 
-def organizar_notas_em_excel(dados_notas, caminho_excel):
-    planilha = openpyxl.Workbook()
-    planilha_ativa = planilha.active
+def criar_planilha(extracoes, output_dir):
+    # Criar um diretório temporário
+    temp_dir = tempfile.mkdtemp()
 
-    # Aqui vocÊ adiciona o que quer ler da nota fiscal, podendo ter quantos valores quiser
-    planilha_ativa.append(['Número da Nota Fiscal', 'Valor', 'Data'])
+    # nome da planilha (eu dei um nome aleatório, use o que vc quiser)
+    output_path = os.path.join(temp_dir, "planilha.xlsx")
 
-    # Adicionar dados das notas
-    for nota in dados_notas:
-        planilha_ativa.append(nota)
+    # Criar a planilha Excel
+    workbook = Workbook()
+    sheet = workbook.active
 
-    # Salvar o arquivo Excel
-    planilha.save(caminho_excel)
+    # Adicionar cabeçalhos
+    sheet.append(["Nome", "Email", "Logradouro"])
+
+    # Adicionar dados extraídos a planilha
+    sheet.append(extracoes)
+
+    # Salvar a planilha
+    workbook.save(output_path)
+
+    # Imprimir o caminho para a planilha
+    print(f"Planilha salva em: {output_path}")
 
 
 if __name__ == "__main__":
-    caminho_xml = 'caminho/do/seu/arquivo/xml.xml'
+    # Caminho para o arquivo XML (use o do seu diretório)
+    xml_path = r"35231109296295000240570030090307961783251005-cte-proc.xml"
 
-    # Extrair dados do XML
-    dados_notas = extrair_dados_xml(caminho_xml)
+    # Extrair informações do XML
+    extracoes = extrair_informacoes(xml_path)
 
-    # Organizar notas em um arquivo Excel
-    organizar_notas_em_excel(dados_notas, 'caminho/do/seu/arquivo/excel.xlsx')
+    # Criar planilha Excel com os dados extraídos em um diretório temporário (usei pq o meu n estava dando retorno direto)
+    criar_planilha(extracoes, tempfile.gettempdir())
